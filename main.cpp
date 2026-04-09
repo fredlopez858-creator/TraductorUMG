@@ -27,7 +27,7 @@ int main() {
     if (esPalindromo(palabra, 0, palabra.length() - 1)) {
         cout << "Es palindroma" << endl;
     } else {
-        cout << "No es palindroma!" << endl;
+        cout << "No es palindroma!AAAAA" << endl;
     }
 
     return 0;
