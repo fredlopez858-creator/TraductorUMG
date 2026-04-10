@@ -6,12 +6,27 @@
 #include <iomanip>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <windows.h> // Necesario para el comando de audio
 
 using namespace std;
 using json = nlohmann::json;
 
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
+// --- NUEVA FUNCION PARA IGNORAR MAYUSCULAS/MINUSCULAS ---
+string aMinusculas(string cadena) {
+    for (int i = 0; i < (int)cadena.length(); i++) {
+        cadena[i] = tolower(cadena[i]);
+    }
+    return cadena;
+}
+
+// --- NUEVA FUNCION PARA REPRODUCIR AUDIO CLARO ---
+void reproducirAudio(string texto) {
+    // Comando que invoca el motor de voz de Windows de forma clara y completa
+    string comando = "powershell -Command \"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
+    system(comando.c_str());
+}
 
 struct NodoAVL {
     string palabra;
@@ -159,21 +174,22 @@ public:
     ~ArbolAVL() { destruir(raiz); }
 
     void insertar(const string& pal, const string& trad = "", const string& id = "", int cont = 1) {
-        raiz = insertar(raiz, pal, trad, id, cont);
+        raiz = insertar(raiz, aMinusculas(pal), trad, id, cont); // Se inserta en minusculas
     }
 
     bool eliminar(const string& pal) {
-        if (!buscar(raiz, pal)) return false;
-        raiz = eliminar(raiz, pal);
+        string palMin = aMinusculas(pal);
+        if (!buscar(raiz, palMin)) return false;
+        raiz = eliminar(raiz, palMin);
         return true;
     }
 
     NodoAVL* buscar(const string& pal) {
-        return buscar(raiz, pal);
+        return buscar(raiz, aMinusculas(pal)); // Se busca en minusculas
     }
 
     void incrementarContador(const string& pal) {
-        NodoAVL* n = buscar(raiz, pal);
+        NodoAVL* n = buscar(raiz, aMinusculas(pal));
         if (n) n->contadorBusqueda++;
     }
 
@@ -185,7 +201,6 @@ public:
 
     bool estaVacio() { return raiz == nullptr; }
 
-    // Formato de archivo: palabra|traduccion|idioma|contador
     void cargarDesdeArchivo(const string& ruta) {
         ifstream archivo(ruta);
         if (!archivo.is_open()) return;
@@ -216,7 +231,6 @@ public:
         archivo.close();
     }
 };
-
 
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     ((string*)userp)->append((char*)contents, size * nmemb);
@@ -251,8 +265,6 @@ string traducir(const string& texto, const string& lenguajeDestino) {
     }
     return "[Error de conexion o API Key invalida]";
 }
-
-// FUNCIONES DE INTERFAZ y UTILIDADES
 
 void mostrarSugerencias(ArbolAVL& arbol, const string& usuario) {
     auto todos = arbol.obtenerTodos();
@@ -298,8 +310,6 @@ void mostrarHistorial(ArbolAVL& arbol) {
     cout << string(60, '-') << "\n";
 }
 
-//  FUNCIONES MINIMAS PARAMAIN 
-
 void pausar() {
     cout << "\nPresione ENTER para continuar...";
     cin.ignore();
@@ -338,7 +348,7 @@ string gestionarUsuario() {
                 break;
             }
             case 2: {
-                cout << "REGISTRAR USUARIO"<<endl;;
+                cout << "REGISTRAR USUARIO"<<endl;
                 cout << "Nuevo ID de Usuario: ";
                 cin >> usuario;
 
@@ -372,7 +382,6 @@ string gestionarUsuario() {
 
 int main() {
     string usuario = gestionarUsuario();
-
     string ruta = "sesiones/" + usuario + ".txt";
     ArbolAVL historial;
     historial.cargarDesdeArchivo(ruta);
@@ -392,7 +401,7 @@ int main() {
 
         switch (opcion) {
             case 1: {
-                string palabra, idioma;
+                string palabra, idioma, resultado;
                 cout << "TRADUCIR PALABRA"<<endl;
                 cout << "Palabra a traducir: "<<endl;
                 cin >> palabra;
@@ -401,15 +410,19 @@ int main() {
 
                 NodoAVL* cache = historial.buscar(palabra);
                 if (cache && cache->idioma == idioma) {
-                    cout << "\n[Cache AVL] TRADUCCION: " << cache->traduccion << "\n";
+                    resultado = cache->traduccion;
+                    cout << "\n[Cache AVL] TRADUCCION: " << resultado << "\n";
                     historial.incrementarContador(palabra);
                 } else {
-                    string resultado = traducir(palabra, idioma);
+                    resultado = traducir(palabra, idioma);
                     cout << "TRADUCCION: " << resultado << "\n";
                     int contPrevio = cache ? cache->contadorBusqueda + 1 : 1;
                     if (cache) historial.eliminar(palabra);
                     historial.insertar(palabra, resultado, idioma, contPrevio);
                 }
+                // --- SE AGREGA EL AUDIO AQUI ---
+                cout << "[Reproduciendo audio...]" << endl;
+                reproducirAudio(resultado);
                 pausar();
                 break;
             }
