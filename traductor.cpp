@@ -6,14 +6,13 @@
 #include <iomanip>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-#include <windows.h> // Necesario para el comando de audio
+#include <windows.h> 
 
 using namespace std;
 using json = nlohmann::json;
 
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
-// --- NUEVA FUNCION PARA IGNORAR MAYUSCULAS/MINUSCULAS ---
 string aMinusculas(string cadena) {
     for (int i = 0; i < (int)cadena.length(); i++) {
         cadena[i] = tolower(cadena[i]);
@@ -21,11 +20,40 @@ string aMinusculas(string cadena) {
     return cadena;
 }
 
-// --- NUEVA FUNCION PARA REPRODUCIR AUDIO CLARO ---
-void reproducirAudio(string texto) {
-    // Comando que invoca el motor de voz de Windows de forma clara y completa
-    string comando = "powershell -Command \"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
-    system(comando.c_str());
+void reproducirAudio(const string& texto) {
+    // Escapa comillas simples duplicándolas (convención de PowerShell)
+    string textoEscapado;
+    for (char c : texto) {
+        if (c == '\'') textoEscapado += "''";
+        else           textoEscapado += c;
+    }
+
+    string cmdLine =
+        "powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \""
+        "Add-Type -AssemblyName System.Speech; "
+        "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('"
+        + textoEscapado + "')\"";
+
+    STARTUPINFOA si = {};
+    si.cb          = sizeof(si);
+    si.dwFlags     = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    // Redirige stdout y stderr a NUL para ocultar salida de PowerShell
+    HANDLE hNul = CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE,
+                              nullptr, OPEN_EXISTING, 0, nullptr);
+    si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = hNul;
+    si.hStdError  = hNul;
+
+    PROCESS_INFORMATION pi = {};
+    if (CreateProcessA(nullptr, &cmdLine[0], nullptr, nullptr,
+                       TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    CloseHandle(hNul);
 }
 
 struct NodoAVL {
@@ -185,7 +213,7 @@ public:
     }
 
     NodoAVL* buscar(const string& pal) {
-        return buscar(raiz, aMinusculas(pal)); // Se busca en minusculas
+        return buscar(raiz, aMinusculas(pal)); 
     }
 
     void incrementarContador(const string& pal) {
@@ -310,6 +338,17 @@ void mostrarHistorial(ArbolAVL& arbol) {
     cout << string(60, '-') << "\n";
 }
 
+int leerOpcion() {
+    int op;
+    cin >> op;
+    if (cin.fail()) {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return -1;
+    }
+    return op;
+}
+
 void pausar() {
     cout << "\nPresione ENTER para continuar...";
     cin.ignore();
@@ -326,7 +365,7 @@ string gestionarUsuario() {
         cout << "  2. Registrar nuevo usuario"<<endl;
         cout << "  3. Salir"<<endl;
         cout << "  Opcion: ";
-        cin >> opcion;
+        opcion = leerOpcion();
 
         switch (opcion) {
             case 1: {
@@ -397,7 +436,7 @@ int main() {
         cout << "  4. Ver historial completo"<<endl;
         cout << "  5. Salir"<<endl;
         cout << "  Opcion: ";
-        cin >> opcion;
+        opcion = leerOpcion();
 
         switch (opcion) {
             case 1: {
@@ -423,7 +462,7 @@ int main() {
                 // --- SE AGREGA EL AUDIO AQUI ---
                 cout << "[Reproduciendo audio...]" << endl;
                 reproducirAudio(resultado);
-                pausar();
+                pausar();  
                 break;
             }
             case 2: {
