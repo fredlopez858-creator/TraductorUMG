@@ -1,0 +1,4 @@
+camion|truck|en|1
+casa|house|en|1
+gato|cat|en|1
+perro|dog|en|3

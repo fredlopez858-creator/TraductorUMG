@@ -1,0 +1,3 @@
+g++ traductor.cpp -o traductor.exe -I C:/dependencias/vcpkg/installed/x64-windows/include -L C:/dependencias/vcpkg/installed/x64-windows/lib -lcurl
+
+.\traductor.exe
