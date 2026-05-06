@@ -391,9 +391,9 @@ int main() {
         mostrarSugerencias(historial, usuario);
 
         cout << "   TRADUCTOR UMG  |  Usuario: " << usuario << "\n";
-        cout << "  1. Traducir palabra o frase"<<endl;
-        cout << "  2. Agregar traduccion manual (palabra/frase)"<<endl;
-        cout << "  3. Eliminar del historial"<<endl;
+        cout << "  1. Traducir palabra"<<endl;
+        cout << "  2. Agregar palabra con traduccion manual"<<endl;
+        cout << "  3. Eliminar palabra del historial"<<endl;
         cout << "  4. Ver historial completo"<<endl;
         cout << "  5. Salir"<<endl;
         cout << "  Opcion: ";
@@ -402,14 +402,11 @@ int main() {
         switch (opcion) {
             case 1: {
                 string palabra, idioma, resultado;
-                cout << "TRADUCIR"<<endl;
-                cout << "Texto a traducir: "<<endl;
-                
-                cin.ignore(); // LIMPIAR EL BUFFER ANTES DE LEER LA FRASE
-                getline(cin, palabra); // LEER LA FRASE COMPLETA CON ESPACIOS
-                
+                cout << "TRADUCIR PALABRA"<<endl;
+                cout << "Palabra a traducir: "<<endl;
+                cin >> palabra;
                 cout << "Idioma destino (en, fr, it, de, es): "<<endl;
-                cin >> idioma; // El idioma no tiene espacios, cin está bien aquí
+                cin >> idioma;
 
                 NodoAVL* cache = historial.buscar(palabra);
                 if (cache && cache->idioma == idioma) {
@@ -431,15 +428,11 @@ int main() {
             }
             case 2: {
                 string palabra, traduccion, idioma;
-                cout << "AGREGAR MANUALMENTE"<<endl;
-                cout << "Texto original: "<<endl;
-                
-                cin.ignore(); // LIMPIAR EL BUFFER
-                getline(cin, palabra); // LEER LA FRASE
-                
+                cout << "AGREGAR PALABRA MANUAL"<<endl;
+                cout << "Palabra original: "<<endl;
+                cin >> palabra;
                 cout << "Traduccion: "<<endl;
-                getline(cin, traduccion); // LA TRADUCCIÓN TAMBIÉN PUEDE TENER ESPACIOS
-                
+                cin >> traduccion;
                 cout << "Idioma (en, fr, it, de, es): "<<endl;
                 cin >> idioma;
                 historial.insertar(palabra, traduccion, idioma, 1);
@@ -450,15 +443,12 @@ int main() {
             case 3: {
                 string palabra;
                 cout << "ELIMINAR DEL HISTORIAL"<<endl;
-                cout << "Texto a eliminar: "<<endl;
-                
-                cin.ignore(); // LIMPIAR EL BUFFER
-                getline(cin, palabra); // LEER CON ESPACIOS
-                
+                cout << "Palabra a eliminar: "<<endl;
+                cin >> palabra;
                 if (historial.eliminar(palabra))
                     cout << "\n[Nodo eliminado del arbol AVL]\n";
                 else
-                    cout << "\n[Texto no encontrado en el historial]\n";
+                    cout << "\n[Palabra no encontrada en el historial]\n";
                 pausar();
                 break;
             }
