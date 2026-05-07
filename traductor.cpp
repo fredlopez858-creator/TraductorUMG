@@ -21,7 +21,6 @@ string aMinusculas(string cadena) {
 }
 
 void reproducirAudio(const string& texto) {
-    // Escapa comillas simples duplicándolas (convención de PowerShell)
     string textoEscapado;
     for (char c : texto) {
         if (c == '\'') textoEscapado += "''";
@@ -39,7 +38,6 @@ void reproducirAudio(const string& texto) {
     si.dwFlags     = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
 
-    // Redirige stdout y stderr a NUL para ocultar salida de PowerShell
     HANDLE hNul = CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE,
                               nullptr, OPEN_EXISTING, 0, nullptr);
     si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
@@ -202,7 +200,7 @@ public:
     ~ArbolAVL() { destruir(raiz); }
 
     void insertar(const string& pal, const string& trad = "", const string& id = "", int cont = 1) {
-        raiz = insertar(raiz, aMinusculas(pal), trad, id, cont); // Se inserta en minusculas
+        raiz = insertar(raiz, aMinusculas(pal), trad, id, cont); 
     }
 
     bool eliminar(const string& pal) {
@@ -459,7 +457,7 @@ int main() {
                     if (cache) historial.eliminar(palabra);
                     historial.insertar(palabra, resultado, idioma, contPrevio);
                 }
-                // --- SE AGREGA EL AUDIO AQUI ---
+
                 cout << "[Reproduciendo audio...]" << endl;
                 reproducirAudio(resultado);
                 pausar();  
