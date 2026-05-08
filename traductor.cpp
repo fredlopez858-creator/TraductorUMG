@@ -415,7 +415,7 @@ string traducir(const string &texto, const string &lenguajeDestino)
             }
         }
     }
-    return "[Error de conexion o API Key invalida]";
+    return "[Error de conexion o API Key invalida.]";
 }
 
 void mostrarSugerencias(ArbolAVL &arbol, const string &usuario)
