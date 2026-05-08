@@ -1,6 +1,0 @@
-carro|voiture|fr|1
-dog|dog|en|2
-gato|chat|fr|2
-perro|dog|en|3
-rosa|rose|fr|1
-salchicha|salsiccia|it|1

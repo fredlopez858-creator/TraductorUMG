@@ -4,71 +4,110 @@
 #include <vector>
 #include <algorithm>
 #include <iomanip>
+#include <unordered_map>
+#include <set>
+#include <ctime>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-#include <windows.h> 
+#include <windows.h>
 
 using namespace std;
 using json = nlohmann::json;
 
+// Diccionario para encriptacion bidireccional 
+unordered_map<char, string> encryptMap = {
+    {'a', "U1"}, {'e', "U2"}, {'i', "U3"}, {'o', "U4"}, {'u', "U5"},
+    {'b', "m1"}, {'c', "m2"}, {'d', "m3"}, {'f', "m4"}, {'g', "m5"},
+    {'h', "m6"}, {'j', "m7"}, {'k', "m8"}, {'l', "m9"}, {'m', "m10"},
+    {'n', "m11"}, {'p', "m13"}, {'q', "m14"}, {'r', "m15"},
+    {'s', "m16"}, {'t', "m17"}, {'v', "m18"}, {'w', "m19"},
+    {'x', "m20"}, {'y', "m21"}, {'z', "m22"},
+    {'B', "g1"},  {'C', "g2"},  {'D', "g3"},  {'F', "g4"},  {'G', "g5"},
+    {'H', "g6"},  {'J', "g7"},  {'K', "g8"},  {'L', "g9"},  {'M', "g10"},
+    {'N', "g11"}, {'P', "g13"}, {'Q', "g14"}, {'R', "g15"},
+    {'S', "g16"}, {'T', "g17"}, {'V', "g18"}, {'W', "g19"},
+    {'X', "g20"}, {'Y', "g21"}, {'Z', "g22"}
+};
+
+string encriptar(const string& texto) {
+    string cifrado;
+    for (unsigned char c : texto) {
+        auto it = encryptMap.find(static_cast<char>(c));
+        if (it != encryptMap.end())
+            cifrado += "[" + it->second + "]";
+        else
+            cifrado += static_cast<char>(c);
+    }
+    return cifrado;
+}
+
+unordered_map<string, char> decryptMap = []() {
+    unordered_map<string, char> m;
+    for (auto& p : encryptMap)
+        m[p.second] = p.first;
+    return m;
+}();
+
+string desencriptar(const string& cifrado) {
+    string original;
+    size_t i = 0;
+    while (i < cifrado.size()) {
+        if (cifrado[i] == '[') {
+            size_t cierre = cifrado.find(']', i + 1);
+            if (cierre != string::npos) {
+                string codigo = cifrado.substr(i + 1, cierre - i - 1);
+                auto it = decryptMap.find(codigo);
+                if (it != decryptMap.end()) {
+                    original += it->second;
+                    i = cierre + 1;
+                    continue;
+                }
+            }
+        }
+        original += cifrado[i];
+        i++;
+    }
+    return original;
+}
+
+void crearDirectorioRecursivo(const string& ruta) {
+    for (size_t i = 1; i <= ruta.size(); i++) {
+        if (i == ruta.size() || ruta[i] == '/' || ruta[i] == '\\')
+            CreateDirectoryA(ruta.substr(0, i).c_str(), nullptr);
+    }
+}
+
+
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
-<<<<<<< HEAD
-string aMinusculas(string cadena) {
-    for (int i = 0; i < (int)cadena.length(); i++) {
-=======
-// --- NUEVA FUNCION PARA IGNORAR MAYUSCULAS/MINUSCULAS ---
 string aMinusculas(string cadena)
 {
     for (int i = 0; i < (int)cadena.length(); i++)
     {
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
         cadena[i] = tolower(cadena[i]);
     }
     return cadena;
 }
 
-<<<<<<< HEAD
-void reproducirAudio(const string& texto) {
-    string textoEscapado;
-    for (char c : texto) {
-        if (c == '\'') textoEscapado += "''";
-        else           textoEscapado += c;
-    }
-
-    string cmdLine =
-        "powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command \""
-        "Add-Type -AssemblyName System.Speech; "
-        "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('"
-        + textoEscapado + "')\"";
-
-    STARTUPINFOA si = {};
-    si.cb          = sizeof(si);
-    si.dwFlags     = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
-
-    HANDLE hNul = CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE,
-                              nullptr, OPEN_EXISTING, 0, nullptr);
-    si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
-    si.hStdOutput = hNul;
-    si.hStdError  = hNul;
-
-    PROCESS_INFORMATION pi = {};
-    if (CreateProcessA(nullptr, &cmdLine[0], nullptr, nullptr,
-                       TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
-        WaitForSingleObject(pi.hProcess, INFINITE);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-    }
-    CloseHandle(hNul);
-=======
-// --- NUEVA FUNCION PARA REPRODUCIR AUDIO CLARO ---
-void reproducirAudio(string texto)
+void reproducirAudio(const string &texto)
 {
-    // Comando que invoca el motor de voz de Windows de forma clara y completa
-    string comando = "powershell -Command \"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
-    system(comando.c_str());
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
+    string comando = "powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command \"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
+
+    STARTUPINFOA infoInicio = {};
+    infoInicio.cb = sizeof(infoInicio);
+    infoInicio.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+    infoInicio.wShowWindow = SW_HIDE;
+    infoInicio.hStdOutput = INVALID_HANDLE_VALUE;
+    infoInicio.hStdError  = INVALID_HANDLE_VALUE;
+
+    PROCESS_INFORMATION infoProceso = {};
+
+    if (CreateProcessA(nullptr, const_cast<char *>(comando.c_str()), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &infoInicio, &infoProceso))
+    {
+        WaitForSingleObject(infoProceso.hProcess, INFINITE);
+        CloseHandle(infoProceso.hProcess);
+        CloseHandle(infoProceso.hThread);
+    }
 }
 
 struct NodoAVL
@@ -242,14 +281,9 @@ public:
     ArbolAVL() : raiz(nullptr) {}
     ~ArbolAVL() { destruir(raiz); }
 
-<<<<<<< HEAD
-    void insertar(const string& pal, const string& trad = "", const string& id = "", int cont = 1) {
-        raiz = insertar(raiz, aMinusculas(pal), trad, id, cont); 
-=======
     void insertar(const string &pal, const string &trad = "", const string &id = "", int cont = 1)
     {
         raiz = insertar(raiz, aMinusculas(pal), trad, id, cont); // Se inserta en minusculas
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
     }
 
     bool eliminar(const string &pal)
@@ -261,14 +295,9 @@ public:
         return true;
     }
 
-<<<<<<< HEAD
-    NodoAVL* buscar(const string& pal) {
-        return buscar(raiz, aMinusculas(pal)); 
-=======
     NodoAVL *buscar(const string &pal)
     {
-        return buscar(raiz, aMinusculas(pal)); // Se busca en minusculas
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
+        return buscar(raiz, aMinusculas(pal)); 
     }
 
     void incrementarContador(const string &pal)
@@ -320,6 +349,31 @@ public:
                     << n->traduccion << "|"
                     << n->idioma << "|"
                     << n->contadorBusqueda << "\n";
+        }
+        archivo.close();
+    }
+
+    void cargarDesdeArchivoEncriptado(const string &ruta)
+    {
+        ifstream archivo(ruta);
+        if (!archivo.is_open())
+            return;
+        string linea;
+        while (getline(archivo, linea))
+        {
+            if (linea.empty())
+                continue;
+            string lineaDec = desencriptar(linea);
+            size_t p1 = lineaDec.find('|');
+            size_t p2 = lineaDec.find('|', p1 + 1);
+            size_t p3 = lineaDec.find('|', p2 + 1);
+            if (p1 == string::npos || p2 == string::npos || p3 == string::npos)
+                continue;
+            string pal  = lineaDec.substr(0, p1);
+            string trad = lineaDec.substr(p1 + 1, p2 - p1 - 1);
+            string id   = lineaDec.substr(p2 + 1, p3 - p2 - 1);
+            int cont    = stoi(lineaDec.substr(p3 + 1));
+            insertar(pal, trad, id, cont);
         }
         archivo.close();
     }
@@ -412,23 +466,39 @@ void mostrarHistorial(ArbolAVL &arbol)
     cout << string(60, '-') << "\n";
 }
 
-<<<<<<< HEAD
-int leerOpcion() {
-    int op;
-    cin >> op;
-    if (cin.fail()) {
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        return -1;
-    }
-    return op;
+void guardarLlave(const string &dir)
+{
+    vector<pair<char, string>> pares(encryptMap.begin(), encryptMap.end());
+    sort(pares.begin(), pares.end());
+
+    ofstream fLlave(dir + "/llave.txt");
+    for (auto &p : pares)
+        fLlave << p.first << " -> [" << p.second << "]\n";
+    fLlave.close();
 }
 
-void pausar() {
-=======
+void guardarHistorialEncriptado(const string &usuario, ArbolAVL &arbol)
+{
+    string dir = "usuarios/" + usuario;
+    crearDirectorioRecursivo(dir);
+
+    ofstream fOrig(dir + "/historial_original.txt");
+    ofstream fCif(dir  + "/historial_cifrado.txt");
+
+    for (NodoAVL *n : arbol.obtenerTodos())
+    {
+        string linea = n->palabra + "|" + n->traduccion + "|" + n->idioma + "|" + to_string(n->contadorBusqueda);
+        fOrig << linea << "\n";
+        fCif  << encriptar(linea) << "\n";
+    }
+
+    fOrig.close();
+    fCif.close();
+    guardarLlave(dir);
+}
+
 void pausar()
 {
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
     cout << "\nPresione ENTER para continuar...";
     cin.ignore();
     cin.get();
@@ -446,7 +516,7 @@ string gestionarUsuario()
         cout << "  2. Registrar nuevo usuario" << endl;
         cout << "  3. Salir" << endl;
         cout << "  Opcion: ";
-        opcion = leerOpcion();
+        cin >> opcion; 
 
         switch (opcion)
         {
@@ -456,7 +526,7 @@ string gestionarUsuario()
             cout << "ID de Usuario: " << endl;
             cin >> usuario;
 
-            string ruta = "sesiones/" + usuario + ".txt";
+            string ruta = "usuarios/" + usuario + "/historial_cifrado.txt";
             ifstream archivo(ruta);
             if (archivo.good())
             {
@@ -478,7 +548,7 @@ string gestionarUsuario()
             cout << "Nuevo ID de Usuario: ";
             cin >> usuario;
 
-            string ruta = "sesiones/" + usuario + ".txt";
+            string ruta = "usuarios/" + usuario + "/historial_cifrado.txt";
             ifstream verificar(ruta);
             if (verificar.good())
             {
@@ -488,8 +558,11 @@ string gestionarUsuario()
             }
             else
             {
-                ofstream nuevo(ruta);
-                nuevo.close();
+                string dir = "usuarios/" + usuario;
+                crearDirectorioRecursivo(dir);
+                ofstream(dir + "/historial_cifrado.txt").close();
+                ofstream(dir + "/historial_original.txt").close();
+                guardarLlave(dir);
                 cout << "\n[Usuario '" << usuario << "' registrado exitosamente!]\n";
                 pausar();
                 return usuario;
@@ -514,9 +587,9 @@ string gestionarUsuario()
 int main()
 {
     string usuario = gestionarUsuario();
-    string ruta = "sesiones/" + usuario + ".txt";
+    string rutaCifrado = "usuarios/" + usuario + "/historial_cifrado.txt";
     ArbolAVL historial;
-    historial.cargarDesdeArchivo(ruta);
+    historial.cargarDesdeArchivoEncriptado(rutaCifrado);
 
     int opcion;
     do
@@ -530,7 +603,7 @@ int main()
         cout << "  4. Ver historial completo" << endl;
         cout << "  5. Salir" << endl;
         cout << "  Opcion: ";
-        opcion = leerOpcion();
+        cin >> opcion; 
 
         switch (opcion)
         {
@@ -540,25 +613,6 @@ int main()
             cout << "TRADUCIR" << endl;
             cout << "Texto a traducir: " << endl;
 
-<<<<<<< HEAD
-                NodoAVL* cache = historial.buscar(palabra);
-                if (cache && cache->idioma == idioma) {
-                    resultado = cache->traduccion;
-                    cout << "\n[Cache AVL] TRADUCCION: " << resultado << "\n";
-                    historial.incrementarContador(palabra);
-                } else {
-                    resultado = traducir(palabra, idioma);
-                    cout << "TRADUCCION: " << resultado << "\n";
-                    int contPrevio = cache ? cache->contadorBusqueda + 1 : 1;
-                    if (cache) historial.eliminar(palabra);
-                    historial.insertar(palabra, resultado, idioma, contPrevio);
-                }
-
-                cout << "[Reproduciendo audio...]" << endl;
-                reproducirAudio(resultado);
-                pausar();  
-                break;
-=======
             cin.ignore();          // LIMPIAR EL BUFFER ANTES DE LEER LA FRASE
             getline(cin, palabra); // LEER LA FRASE COMPLETA CON ESPACIOS
 
@@ -571,7 +625,6 @@ int main()
                 resultado = cache->traduccion;
                 cout << "\n[Cache AVL] TRADUCCION: " << resultado << "\n";
                 historial.incrementarContador(palabra);
->>>>>>> 430fd7f (Se aplico la funcion de leer frases)
             }
             else
             {
@@ -582,7 +635,7 @@ int main()
                     historial.eliminar(palabra);
                 historial.insertar(palabra, resultado, idioma, contPrevio);
             }
-            // --- SE AGREGA EL AUDIO AQUI ---
+            // --- AUDIO ---
             cout << "[Reproduciendo audio...]" << endl;
             reproducirAudio(resultado);
             pausar();
@@ -631,7 +684,7 @@ int main()
         }
         case 5:
         {
-            historial.guardarEnArchivo(ruta);
+            guardarHistorialEncriptado(usuario, historial);
             cout << "Sesion guardada. Hasta luego, " << usuario << "!" << endl;
             break;
         }

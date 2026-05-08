@@ -1,6 +1,0 @@
-alimentos|food|en|1
-computadora|computer|en|1
-electrodomestico|elettrodomestico|it|1
-elote|maïs|fr|1
-gato|cat|en|1
-perro|dog|en|1
