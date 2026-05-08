@@ -1,1 +1,3 @@
+Bomba|Pipe|en|1
+globo|globe|en|1
 roda|wheel|en|1
