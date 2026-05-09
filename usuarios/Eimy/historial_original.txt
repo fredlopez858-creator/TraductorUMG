@@ -1,3 +1,3 @@
-arroz con pollo a la plancha|Grilled chicken and rice|en|1
-pollo|pollo|it|1
+Bomba|Pipe|en|1
+globo|globe|en|1
 roda|wheel|en|1

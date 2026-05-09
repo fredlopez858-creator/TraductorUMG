@@ -14,7 +14,6 @@
 using namespace std;
 using json = nlohmann::json;
 
-// Diccionario para encriptacion bidireccional 
 unordered_map<char, string> encryptMap = {
     {'a', "U1"}, {'e', "U2"}, {'i', "U3"}, {'o', "U4"}, {'u', "U5"},
     {'b', "m1"}, {'c', "m2"}, {'d', "m3"}, {'f', "m4"}, {'g', "m5"},
@@ -76,7 +75,6 @@ void crearDirectorioRecursivo(const string& ruta) {
             CreateDirectoryA(ruta.substr(0, i).c_str(), nullptr);
     }
 }
-
 
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
