@@ -14,34 +14,47 @@
 using namespace std;
 using json = nlohmann::json;
 
-unordered_map<char, string> encryptMap = {
-    {'a', "U1"}, {'e', "U2"}, {'i', "U3"}, {'o', "U4"}, {'u', "U5"},
-    {'b', "m1"}, {'c', "m2"}, {'d', "m3"}, {'f', "m4"}, {'g', "m5"},
-    {'h', "m6"}, {'j', "m7"}, {'k', "m8"}, {'l', "m9"}, {'m', "m10"},
-    {'n', "m11"}, {'p', "m13"}, {'q', "m14"}, {'r', "m15"},
-    {'s', "m16"}, {'t', "m17"}, {'v', "m18"}, {'w', "m19"},
-    {'x', "m20"}, {'y', "m21"}, {'z', "m22"},
-    {'B', "g1"},  {'C', "g2"},  {'D', "g3"},  {'F', "g4"},  {'G', "g5"},
-    {'H', "g6"},  {'J', "g7"},  {'K', "g8"},  {'L', "g9"},  {'M', "g10"},
-    {'N', "g11"}, {'P', "g13"}, {'Q', "g14"}, {'R', "g15"},
-    {'S', "g16"}, {'T', "g17"}, {'V', "g18"}, {'W', "g19"},
-    {'X', "g20"}, {'Y', "g21"}, {'Z', "g22"}
+unordered_map<string, string> encryptMap = {
+    {"a", "U1"}, {"e", "U2"}, {"i", "U3"}, {"o", "U4"}, {"u", "U5"},
+    {"b", "m1"}, {"c", "m2"}, {"d", "m3"}, {"f", "m4"}, {"g", "m5"},
+    {"h", "m6"}, {"j", "m7"}, {"k", "m8"}, {"l", "m9"}, {"m", "m10"},
+    {"n", "m11"}, {"ñ", "m12"}, {"p", "m13"}, {"q", "m14"}, {"r", "m15"},
+    {"s", "m16"}, {"t", "m17"}, {"v", "m18"}, {"w", "m19"},
+    {"x", "m20"}, {"y", "m21"}, {"z", "m22"},
+    {"B", "g1"},  {"C", "g2"},  {"D", "g3"},  {"F", "g4"},  {"G", "g5"},
+    {"H", "g6"},  {"J", "g7"},  {"K", "g8"},  {"L", "g9"},  {"M", "g10"},
+    {"N", "g11"}, {"Ñ", "g12"}, {"P", "g13"}, {"Q", "g14"}, {"R", "g15"},
+    {"S", "g16"}, {"T", "g17"}, {"V", "g18"}, {"W", "g19"},
+    {"X", "g20"}, {"Y", "g21"}, {"Z", "g22"}
 };
 
 string encriptar(const string& texto) {
     string cifrado;
-    for (unsigned char c : texto) {
-        auto it = encryptMap.find(static_cast<char>(c));
-        if (it != encryptMap.end())
-            cifrado += "[" + it->second + "]";
-        else
-            cifrado += static_cast<char>(c);
+    for (size_t i = 0; i < texto.length(); ) {
+        bool encontrado = false;
+        if (i + 1 < texto.length()) {
+            string sub = texto.substr(i, 2);
+            if (encryptMap.count(sub)) {
+                cifrado += "[" + encryptMap[sub] + "]";
+                i += 2;
+                encontrado = true;
+            }
+        }
+        if (!encontrado) {
+            string sub = texto.substr(i, 1);
+            if (encryptMap.count(sub)) {
+                cifrado += "[" + encryptMap[sub] + "]";
+            } else {
+                cifrado += texto[i];
+            }
+            i++;
+        }
     }
     return cifrado;
 }
 
-unordered_map<string, char> decryptMap = []() {
-    unordered_map<string, char> m;
+unordered_map<string, string> decryptMap = []() {
+    unordered_map<string, string> m;
     for (auto& p : encryptMap)
         m[p.second] = p.first;
     return m;
@@ -78,12 +91,8 @@ void crearDirectorioRecursivo(const string& ruta) {
 
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
-string aMinusculas(string cadena)
-{
-    for (int i = 0; i < (int)cadena.length(); i++)
-    {
-        cadena[i] = tolower(cadena[i]);
-    }
+string aMinusculas(string cadena) {
+    for (int i = 0; i < (int)cadena.length(); i++) cadena[i] = tolower(cadena[i]);
     return cadena;
 }
 
@@ -466,7 +475,7 @@ void mostrarHistorial(ArbolAVL &arbol)
 
 void guardarLlave(const string &dir)
 {
-    vector<pair<char, string>> pares(encryptMap.begin(), encryptMap.end());
+    vector<pair<string, string>> pares(encryptMap.begin(), encryptMap.end());
     sort(pares.begin(), pares.end());
 
     ofstream fLlave(dir + "/llave.txt");
