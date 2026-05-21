@@ -14,7 +14,6 @@
 using namespace std;
 using json = nlohmann::json;
 
-// Diccionario actualizado para soportar caracteres multi-byte (ñ/Ñ) y reglas G/M de la Fase 2
 unordered_map<string, string> encryptMap = {
     {"a", "U1"}, {"e", "U2"}, {"i", "U3"}, {"o", "U4"}, {"u", "U5"},
     {"b", "m1"}, {"c", "m2"}, {"d", "m3"}, {"f", "m4"}, {"g", "m5"},
@@ -29,12 +28,10 @@ unordered_map<string, string> encryptMap = {
     {"X", "g20"}, {"Y", "g21"}, {"Z", "g22"}
 };
 
-// Función para encriptar manejando caracteres de 1 y 2 bytes (como la ñ)
 string encriptar(const string& texto) {
     string cifrado;
     for (size_t i = 0; i < texto.length(); ) {
         bool encontrado = false;
-        // Intento buscar coincidencia de 2 bytes (para caracteres especiales UTF-8)
         if (i + 1 < texto.length()) {
             string sub = texto.substr(i, 2);
             if (encryptMap.count(sub)) {
@@ -43,7 +40,6 @@ string encriptar(const string& texto) {
                 encontrado = true;
             }
         }
-        // Si no fue de 2 bytes, intento de 1 byte
         if (!encontrado) {
             string sub = texto.substr(i, 1);
             if (encryptMap.count(sub)) {
@@ -93,7 +89,6 @@ void crearDirectorioRecursivo(const string& ruta) {
 
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
-// Mantenemos la función por utilidad, pero ya no se usa en el árbol para respetar el diseño lógico (Mayúsculas)
 string aMinusculas(string cadena) {
     for (int i = 0; i < (int)cadena.length(); i++) cadena[i] = tolower(cadena[i]);
     return cadena;

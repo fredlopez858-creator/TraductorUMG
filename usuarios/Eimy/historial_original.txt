@@ -1,3 +1,5 @@
 Bomba|Pipe|en|1
+Canela y Leche|Cinnamon and Milk|en|1
+camaron y pescado|shrimp and fish|en|1
 globo|globe|en|1
 roda|wheel|en|1
