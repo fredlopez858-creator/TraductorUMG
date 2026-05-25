@@ -1,1 +1,6 @@
 *.exe
+*.swp
+*_LOCAL_*
+*_REMOTE_*
+*_BACKUP_*
+*_BASE_*

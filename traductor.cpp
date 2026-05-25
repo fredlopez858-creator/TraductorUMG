@@ -475,13 +475,20 @@ void mostrarHistorial(ArbolAVL &arbol)
 
 void guardarLlave(const string &dir)
 {
-    vector<pair<string, string>> pares(encryptMap.begin(), encryptMap.end());
-    sort(pares.begin(), pares.end());
-
     ofstream fLlave(dir + "/llave.txt");
-    for (auto &p : pares)
-        fLlave << p.first << " -> [" << p.second << "]\n";
+    fLlave << "UMG\n";
     fLlave.close();
+}
+
+bool validarLlave(const string &dir)
+{
+    ifstream fLlave(dir + "/llave.txt");
+    if (!fLlave.is_open())
+        return false;
+    string contenido;
+    getline(fLlave, contenido);
+    fLlave.close();
+    return contenido == "UMG";
 }
 
 void guardarHistorialEncriptado(const string &usuario, ArbolAVL &arbol)
@@ -594,7 +601,17 @@ string gestionarUsuario()
 int main()
 {
     string usuario = gestionarUsuario();
-    string rutaCifrado = "usuarios/" + usuario + "/historial_cifrado.txt";
+    string dirUsuario = "usuarios/" + usuario;
+
+    if (!validarLlave(dirUsuario))
+    {
+        cout << "\n[ERROR: La llave de cifrado ha sido alterada o es invalida.]\n";
+        cout << "[Acceso a funciones de cifrado bloqueado. Contacte al administrador.]\n";
+        pausar();
+        return 1;
+    }
+
+    string rutaCifrado = dirUsuario + "/historial_cifrado.txt";
     ArbolAVL historial;
     historial.cargarDesdeArchivoEncriptado(rutaCifrado);
 
