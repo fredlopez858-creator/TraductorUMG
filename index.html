@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Traductor UMG - Interfaz Profesional</title>
+    <style>
+        :root { --primary: #00a8ff; --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; justify-content: center; padding: 20px; }
+        .app-container { width: 100%; max-width: 800px; background: var(--card); border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { text-align: center; color: var(--primary); font-size: 2.5em; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .auth-box { display: flex; flex-direction: column; gap: 15px; max-width: 400px; margin: 0 auto; }
+        .main-app { display: none; flex-direction: column; gap: 20px; }
+        input, select, textarea { background: #2a2a2a; border: 1px solid #444; color: white; padding: 12px; border-radius: 8px; font-size: 16px; }
+        button { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { filter: brightness(1.2); transform: translateY(-2px); }
+        .result-box { background: #000; padding: 20px; border-radius: 10px; border-left: 5px solid var(--primary); min-height: 50px; font-size: 1.2em; }
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .history-table th, .history-table td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        .history-table th { color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <h1>TRADUCTOR UMG</h1>
+
+        <!-- SECCIÓN DE AUTENTICACIÓN -->
+        <div id="section-auth" class="auth-box">
+            <h2 style="text-align: center;">Iniciar Sesión</h2>
+            <input type="text" id="login-user" placeholder="Usuario">
+            <input type="password" id="login-pass" placeholder="Contraseña">
+            <button onclick="login()">ENTRAR</button>
+            <button onclick="register()" style="background: #444;">REGISTRAR NUEVO</button>
+        </div>
+
+        <!-- SECCIÓN PRINCIPAL -->
+        <div id="section-main" class="main-app">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Bienvenido, <span id="span-user" style="color: var(--primary);"></span></h3>
+                <button onclick="location.reload()" style="padding: 5px 15px; background: #d13438;">Cerrar Sesión</button>
+            </div>
+
+            <textarea id="text-translate" placeholder="Escriba aquí la palabra o frase..."></textarea>
+            <div style="display: flex; gap: 10px;">
+                <select id="lang-target" style="flex: 1;">
+                    <option value="en">Inglés</option>
+                    <option value="fr">Francés</option>
+                    <option value="it">Italiano</option>
+                    <option value="de">Alemán</option>
+                </select>
+                <button onclick="translate()" style="flex: 2;">TRADUCIR Y ESCUCHAR</button>
+            </div>
+
+            <div class="result-box" id="div-result">La traducción aparecerá aquí...</div>
+
+            <h3>Sugerencias / Historial</h3>
+            <table class="history-table">
+                <thead><tr><th>Palabra</th><th>Traducción</th><th>Idioma</th><th>Búsquedas</th></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = "";
+        async function api(path, data) {
+            const r = await fetch(path, { method: 'POST', body: JSON.stringify(data) });
+            return await r.json();
+        }
+
+        async function login() {
+            const res = await api('/login', { user: document.getElementById('login-user').value, pass: document.getElementById('login-pass').value });
+            if (res.status === "ok") {
+                currentUser = res.user;
+                document.getElementById('section-auth').style.display = 'none';
+                document.getElementById('section-main').style.display = 'flex';
+                document.getElementById('span-user').innerText = currentUser;
+                refreshHistory();
+            } else alert(res.message);
+        }
+
+        async function register() {
+            const res = await api('/register', { user: document.getElementById('login-user').value, pass: document.getElementById('login-pass').value });
+            alert(res.message);
+        }
+
+        async function translate() {
+            const text = document.getElementById('text-translate').value;
+            const lang = document.getElementById('lang-target').value;
+            const res = await api('/translate', { user: currentUser, text, lang });
+            document.getElementById('div-result').innerText = res.translation;
+            refreshHistory();
+        }
+
+        async function refreshHistory() {
+            const res = await api('/history', { user: currentUser });
+            const html = res.data.map(i => `<tr><td>${i.palabra}</td><td>${i.traduccion}</td><td>${i.idioma}</td><td>${i.contador}</td></tr>`).join('');
+            document.getElementById('table-body').innerHTML = html;
+        }
+    </script>
+</body>
+</html>

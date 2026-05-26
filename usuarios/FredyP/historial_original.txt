@@ -1,0 +1,2 @@
+gato|cat|en|1
+perro|dog|en|1
