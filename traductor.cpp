@@ -15,6 +15,11 @@
 using namespace std;
 using json = nlohmann::json;
 
+const string EXT_HISTORIAL = ".hist";
+const string EXT_CIFRADO   = ".enc";
+const string EXT_LLAVE     = ".key";
+const string EXT_PASSWORD  = ".pass";
+
 // Retorna el numero de bytes del caracter UTF-8 que inicia en c, considerando caracteres especiales (especialmente la ñ)
 int utf8CharLen(unsigned char c) {
     if (c < 0x80) return 1;
@@ -490,14 +495,14 @@ void mostrarHistorial(ArbolAVL &arbol)
 
 void guardarLlave(const string &dir)
 {
-    ofstream fLlave(dir + "/llave.txt");
+    ofstream fLlave(dir + "/llave" + EXT_LLAVE);
     fLlave << "UMG\n";
     fLlave.close();
 }
 
 bool validarLlave(const string &dir)
 {
-    ifstream fLlave(dir + "/llave.txt");
+    ifstream fLlave(dir + "/llave" + EXT_LLAVE);
     if (!fLlave.is_open())
         return false;
     string contenido;
@@ -510,7 +515,7 @@ void guardarHistorialEncriptado(const string &usuario, ArbolAVL &arbol)
 {
     string dir = "usuarios/" + usuario;
     crearDirectorioRecursivo(dir);
-    ofstream fOrig(dir + "/historial_original.txt"), fCif(dir + "/historial_cifrado.txt");
+    ofstream fOrig(dir + "/historial_original" + EXT_HISTORIAL), fCif(dir + "/historial_cifrado" + EXT_CIFRADO);
     for (NodoAVL *n : arbol.obtenerTodos()) {
         string linea = n->palabra + "|" + n->traduccion + "|" + n->idioma + "|" + to_string(n->contadorBusqueda);
         fOrig << linea << "\n"; fCif << encriptar(linea) << "\n";
@@ -557,7 +562,7 @@ string gestionarUsuario()
             cout << "  ID de Usuario : "; cin >> usuario;
             cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
             {
-                string rutaPass = "usuarios/" + usuario + "/pass.txt";
+                string rutaPass = "usuarios/" + usuario + "/pass" + EXT_PASSWORD;
                 ifstream fPass(rutaPass);
                 if (fPass.good()) {
                     cout << "  Contrasena    : "; cin >> password;
@@ -576,14 +581,14 @@ string gestionarUsuario()
             cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
             {
                 string dir = "usuarios/" + usuario;
-                ifstream verificar(dir + "/pass.txt");
+                ifstream verificar(dir + "/pass" + EXT_PASSWORD);
                 if (verificar.good()) { cout << endl << "  [!] Este usuario ya existe." << endl; pausar(); }
                 else {
                     cout << "  Nueva contrasena: "; cin >> password;
                     cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
                     crearDirectorioRecursivo(dir);
-                    ofstream f(dir + "/pass.txt"); f << encriptar(password); f.close();
-                    ofstream(dir + "/historial_cifrado.txt").close();
+                    ofstream f(dir + "/pass" + EXT_PASSWORD); f << encriptar(password); f.close();
+                    ofstream(dir + "/historial_cifrado" + EXT_CIFRADO).close();
                     guardarLlave(dir);
                     cout << endl << "  [OK] Usuario '" << usuario << "' registrado con exito!" << endl;
                     pausar();
@@ -608,7 +613,7 @@ int main()
         pausar(); return 1;
     }
 
-    string rutaCifrado = dirUsuario + "/historial_cifrado.txt";
+    string rutaCifrado = dirUsuario + "/historial_cifrado" + EXT_CIFRADO;
     ArbolAVL historial;
     historial.cargarDesdeArchivoEncriptado(rutaCifrado);
 
