@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <iomanip>
+#include <limits>
 #include <unordered_map>
 #include <set>
 #include <ctime>
@@ -14,6 +15,15 @@
 using namespace std;
 using json = nlohmann::json;
 
+// Retorna el numero de bytes del caracter UTF-8 que inicia en c, considerando caracteres especiales (especialmente la ñ)
+int utf8CharLen(unsigned char c) {
+    if (c < 0x80) return 1;
+    if ((c & 0xE0) == 0xC0) return 2;
+    if ((c & 0xF0) == 0xE0) return 3;
+    return 1;
+}
+
+// --- LOGICA DE ENCRIPTACION ---
 unordered_map<string, string> encryptMap = {
     {"a", "U1"}, {"e", "U2"}, {"i", "U3"}, {"o", "U4"}, {"u", "U5"},
     {"b", "m1"}, {"c", "m2"}, {"d", "m3"}, {"f", "m4"}, {"g", "m5"},
@@ -31,24 +41,14 @@ unordered_map<string, string> encryptMap = {
 string encriptar(const string& texto) {
     string cifrado;
     for (size_t i = 0; i < texto.length(); ) {
-        bool encontrado = false;
-        if (i + 1 < texto.length()) {
-            string sub = texto.substr(i, 2);
-            if (encryptMap.count(sub)) {
-                cifrado += "[" + encryptMap[sub] + "]";
-                i += 2;
-                encontrado = true;
-            }
+        int len = utf8CharLen((unsigned char)texto[i]);
+        string sub = texto.substr(i, len);
+        if (encryptMap.count(sub)) {
+            cifrado += "[" + encryptMap[sub] + "]";
+        } else {
+            cifrado += sub;
         }
-        if (!encontrado) {
-            string sub = texto.substr(i, 1);
-            if (encryptMap.count(sub)) {
-                cifrado += "[" + encryptMap[sub] + "]";
-            } else {
-                cifrado += texto[i];
-            }
-            i++;
-        }
+        i += len;
     }
     return cifrado;
 }
@@ -92,26 +92,39 @@ void crearDirectorioRecursivo(const string& ruta) {
 const string MI_API_KEY = "AIzaSyBOfIq453ZzyFIDJXbFOPmP4CUthlGfGDs";
 
 string aMinusculas(string cadena) {
-    for (int i = 0; i < (int)cadena.length(); i++) cadena[i] = tolower(cadena[i]);
+    for (size_t i = 0; i < cadena.length(); ) {
+        unsigned char c = (unsigned char)cadena[i];
+        if (c < 0x80) {
+            cadena[i] = (char)tolower(c);
+            i++;
+        } else {
+            if (c == 0xC3 && i + 1 < cadena.length() && (unsigned char)cadena[i+1] == 0x91)
+                cadena[i+1] = (char)0xB1;
+            i += utf8CharLen(c);
+        }
+    }
     return cadena;
 }
 
 void reproducirAudio(const string &texto)
 {
-    string comando = "powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command \"Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
+    string comando = 
+    "powershell -NoProfile -NonInteractive -WindowStyle Hidden "
+   " -Command \"Add-Type -AssemblyName System.Speech; "
+    "(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + texto + "')\"";
 
     STARTUPINFOA infoInicio = {};
     infoInicio.cb = sizeof(infoInicio);
-    infoInicio.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+
+    infoInicio.dwFlags = STARTF_USESHOWWINDOW; 
     infoInicio.wShowWindow = SW_HIDE;
-    infoInicio.hStdOutput = INVALID_HANDLE_VALUE;
-    infoInicio.hStdError  = INVALID_HANDLE_VALUE;
 
     PROCESS_INFORMATION infoProceso = {};
 
     if (CreateProcessA(nullptr, const_cast<char *>(comando.c_str()), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &infoInicio, &infoProceso))
     {
         WaitForSingleObject(infoProceso.hProcess, INFINITE);
+
         CloseHandle(infoProceso.hProcess);
         CloseHandle(infoProceso.hThread);
     }
@@ -425,52 +438,54 @@ string traducir(const string &texto, const string &lenguajeDestino)
     return "[Error de conexion o API Key invalida]";
 }
 
+// Anchos de separadores consistentes: 2 espacios de margen + 60 caracteres = 62 en total
+#define SEP_M "  ============================================================"
+#define SEP_S "  ------------------------------------------------------------"
+
 void mostrarSugerencias(ArbolAVL &arbol, const string &usuario)
 {
     auto todos = arbol.obtenerTodos();
     if (todos.empty())
         return;
 
-    sort(todos.begin(), todos.end(), [](NodoAVL *a, NodoAVL *b)
-         { return a->contadorBusqueda > b->contadorBusqueda; });
-
-    cout << "\n--- Sugerencias para " << usuario << " (mas buscadas) ---\n";
+    cout << "  SUGERENCIAS PARA " << usuario << " (MAS BUSCADAS):" << endl;
     int limite = min((int)todos.size(), 3);
-    for (int i = 0; i < limite; i++)
-    {
-        cout << " > " << todos[i]->palabra << " -> " << todos[i]->traduccion
-             << " [" << todos[i]->idioma << "] ("
-             << todos[i]->contadorBusqueda << " veces)\n";
+    for (int i = 0; i < limite; i++) {
+        cout << "    [" << (i + 1) << "] "
+             << left << setw(13) << todos[i]->palabra
+             << " -> "
+             << setw(16) << todos[i]->traduccion
+             << " (" << todos[i]->contadorBusqueda << " busquedas)" << endl;
     }
-    cout << "---------------------------------------------\n";
+    cout << SEP_S << endl;
 }
 
 void mostrarHistorial(ArbolAVL &arbol)
 {
     auto todos = arbol.obtenerTodos();
-    if (todos.empty())
-    {
-        cout << "\n[Sin historial de busquedas]\n";
+    if (todos.empty()) {
+        cout << endl << "  [!] Sin historial de busquedas." << endl;
         return;
     }
 
-    sort(todos.begin(), todos.end(), [](NodoAVL *a, NodoAVL *b)
-         { return a->contadorBusqueda > b->contadorBusqueda; });
-
-    cout << "\n--- Historial completo (por frecuencia) ---\n";
-    cout << left << setw(20) << "Palabra"
-         << setw(25) << "Traduccion"
-         << setw(8) << "Idioma"
-         << "Busquedas\n";
-    cout << string(60, '-') << "\n";
-    for (NodoAVL *n : todos)
-    {
-        cout << left << setw(20) << n->palabra
-             << setw(25) << n->traduccion
-             << setw(8) << n->idioma
-             << n->contadorBusqueda << "\n";
+    cout << endl;
+    cout << SEP_M << endl;
+    cout << "              HISTORIAL COMPLETO DE BUSQUEDAS" << endl;
+    cout << SEP_M << endl;
+    cout << "  " << left
+         << setw(18) << "PALABRA"
+         << setw(22) << "TRADUCCION"
+         << setw(8)  << "IDIOMA"
+         << "BUSQUEDAS" << endl;
+    cout << SEP_S << endl;
+    for (NodoAVL *n : todos) {
+        cout << "  " << left
+             << setw(18) << n->palabra
+             << setw(22) << n->traduccion
+             << setw(8)  << n->idioma
+             << n->contadorBusqueda << endl;
     }
-    cout << string(60, '-') << "\n";
+    cout << SEP_M << endl;
 }
 
 void guardarLlave(const string &dir)
@@ -495,15 +510,10 @@ void guardarHistorialEncriptado(const string &usuario, ArbolAVL &arbol)
 {
     string dir = "usuarios/" + usuario;
     crearDirectorioRecursivo(dir);
-
-    ofstream fOrig(dir + "/historial_original.txt");
-    ofstream fCif(dir  + "/historial_cifrado.txt");
-
-    for (NodoAVL *n : arbol.obtenerTodos())
-    {
+    ofstream fOrig(dir + "/historial_original.txt"), fCif(dir + "/historial_cifrado.txt");
+    for (NodoAVL *n : arbol.obtenerTodos()) {
         string linea = n->palabra + "|" + n->traduccion + "|" + n->idioma + "|" + to_string(n->contadorBusqueda);
-        fOrig << linea << "\n";
-        fCif  << encriptar(linea) << "\n";
+        fOrig << linea << "\n"; fCif << encriptar(linea) << "\n";
     }
 
     fOrig.close();
@@ -511,89 +521,78 @@ void guardarHistorialEncriptado(const string &usuario, ArbolAVL &arbol)
     guardarLlave(dir);
 }
 
-void pausar()
+void limpiarPantalla()
 {
-    cout << "\nPresione ENTER para continuar...";
-    cin.ignore();
+    cout << "\033[2J\033[1;1H";
+}
+
+void pausar() {
+    cout << endl << "  Presione ENTER para continuar..." << flush;
     cin.get();
 }
 
 string gestionarUsuario()
 {
     string usuario;
+    string password;
     int opcion;
-
-    while (true)
-    {
-        cout << "  TRADUCTOR UMG - Inicio!" << endl;
-        cout << "  1. Iniciar sesion" << endl;
-        cout << "  2. Registrar nuevo usuario" << endl;
-        cout << "  3. Salir" << endl;
-        cout << "  Opcion: ";
-        cin >> opcion; 
+    while (true) {
+        limpiarPantalla();
+        cout << SEP_M << endl;
+        cout << "                  BIENVENIDO AL TRADUCTOR UMG" << endl;
+        cout << SEP_M << endl;
+        cout << "  [1] Iniciar sesion" << endl;
+        cout << "  [2] Registrar nuevo usuario" << endl;
+        cout << "  [3] Salir del programa" << endl;
+        cout << SEP_S << endl;
+        cout << "  Seleccione una opcion: ";
+        cin >> opcion;
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
         switch (opcion)
         {
         case 1:
-        {
-            cout << "INICIAR SESION" << endl;
-            cout << "ID de Usuario: " << endl;
-            cin >> usuario;
-
-            string ruta = "usuarios/" + usuario + "/historial_cifrado.txt";
-            ifstream archivo(ruta);
-            if (archivo.good())
+            cout << endl << "  --- INICIO DE SESION ---" << endl;
+            cout << "  ID de Usuario : "; cin >> usuario;
+            cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
             {
-                archivo.close();
-                cout << "\n[Bienvenido de nuevo, " << usuario << "!]\n";
-                pausar();
-                return usuario;
-            }
-            else
-            {
-                cout << "\n[Usuario no encontrado. Registrese primero.]\n";
-                pausar();
+                string rutaPass = "usuarios/" + usuario + "/pass.txt";
+                ifstream fPass(rutaPass);
+                if (fPass.good()) {
+                    cout << "  Contrasena    : "; cin >> password;
+                    cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    string passAlmacenada; getline(fPass, passAlmacenada); fPass.close();
+                    if (encriptar(password) == passAlmacenada) {
+                        cout << endl << "  [OK] Bienvenido de nuevo, " << usuario << "!" << endl;
+                        pausar(); return usuario;
+                    } else { cout << endl << "  [X] Contrasena incorrecta." << endl; pausar(); }
+                } else { cout << endl << "  [!] El usuario no existe." << endl; pausar(); }
             }
             break;
-        }
         case 2:
-        {
-            cout << "REGISTRAR USUARIO" << endl;
-            cout << "Nuevo ID de Usuario: ";
-            cin >> usuario;
-
-            string ruta = "usuarios/" + usuario + "/historial_cifrado.txt";
-            ifstream verificar(ruta);
-            if (verificar.good())
-            {
-                verificar.close();
-                cout << "\n[El usuario '" << usuario << "' ya existe. Inicie sesion.]\n";
-                pausar();
-            }
-            else
+            cout << endl << "  --- REGISTRO DE USUARIO ---" << endl;
+            cout << "  Nuevo usuario : "; cin >> usuario;
+            cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
             {
                 string dir = "usuarios/" + usuario;
-                crearDirectorioRecursivo(dir);
-                ofstream(dir + "/historial_cifrado.txt").close();
-                ofstream(dir + "/historial_original.txt").close();
-                guardarLlave(dir);
-                cout << "\n[Usuario '" << usuario << "' registrado exitosamente!]\n";
-                pausar();
-                return usuario;
+                ifstream verificar(dir + "/pass.txt");
+                if (verificar.good()) { cout << endl << "  [!] Este usuario ya existe." << endl; pausar(); }
+                else {
+                    cout << "  Nueva contrasena: "; cin >> password;
+                    cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    crearDirectorioRecursivo(dir);
+                    ofstream f(dir + "/pass.txt"); f << encriptar(password); f.close();
+                    ofstream(dir + "/historial_cifrado.txt").close();
+                    guardarLlave(dir);
+                    cout << endl << "  [OK] Usuario '" << usuario << "' registrado con exito!" << endl;
+                    pausar();
+                    return usuario;
+                }
             }
             break;
-        }
-        case 3:
-        {
-            cout << "Hasta luego!" << endl;
-            exit(0);
-        }
-        default:
-        {
-            cout << "[Opcion invalida]" << endl;
-            pausar();
-            break;
-        }
+        case 3: exit(0);
+        default: cout << "  [!] Opcion invalida." << endl; pausar(); break;
         }
     }
 }
@@ -603,12 +602,10 @@ int main()
     string usuario = gestionarUsuario();
     string dirUsuario = "usuarios/" + usuario;
 
-    if (!validarLlave(dirUsuario))
-    {
-        cout << "\n[ERROR: La llave de cifrado ha sido alterada o es invalida.]\n";
-        cout << "[Acceso a funciones de cifrado bloqueado. Contacte al administrador.]\n";
-        pausar();
-        return 1;
+    if (!validarLlave(dirUsuario)) {
+        cout << endl << "  [ERROR] La llave de cifrado ha sido alterada o es invalida." << endl;
+        cout << "  [Acceso bloqueado. Contacte al administrador.]" << endl;
+        pausar(); return 1;
     }
 
     string rutaCifrado = dirUsuario + "/historial_cifrado.txt";
@@ -616,108 +613,81 @@ int main()
     historial.cargarDesdeArchivoEncriptado(rutaCifrado);
 
     int opcion;
-    do
-    {
+    do {
+        limpiarPantalla();
+        cout << SEP_M << endl;
+        cout << "  " << left << setw(30) << "TRADUCTOR UMG" << "Usuario: " << usuario << endl;
+        cout << SEP_M << endl;
         mostrarSugerencias(historial, usuario);
-
-        cout << "   TRADUCTOR UMG  |  Usuario: " << usuario << "\n";
-        cout << "  1. Traducir palabra o frase" << endl;
-        cout << "  2. Agregar traduccion manual (palabra/frase)" << endl;
-        cout << "  3. Eliminar del historial" << endl;
-        cout << "  4. Ver historial completo" << endl;
-        cout << "  5. Salir" << endl;
+        cout << "  [1] Traducir palabra o frase" << endl;
+        cout << "  [2] Agregar traduccion manualmente" << endl;
+        cout << "  [3] Eliminar del historial" << endl;
+        cout << "  [4] Ver historial completo" << endl;
+        cout << "  [5] Salir y guardar sesion" << endl;
+        cout << SEP_S << endl;
         cout << "  Opcion: ";
-        cin >> opcion; 
+        cin >> opcion;
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-        switch (opcion)
-        {
-        case 1:
-        {
-            string palabra, idioma, resultado;
-            cout << "TRADUCIR" << endl;
-            cout << "Texto a traducir: " << endl;
+        switch (opcion) {
+        case 1: {
+            string pal, idio, res;
+            cout << endl << "  >>> TRADUCIR TEXTO <<<" << endl;
+            cout << "  Texto              : "; getline(cin, pal);
+            cout << "  Idioma (en/fr/it/de/es): "; cin >> idio;
+            cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-            cin.ignore();          // LIMPIAR EL BUFFER ANTES DE LEER LA FRASE
-            getline(cin, palabra); // LEER LA FRASE COMPLETA CON ESPACIOS
-
-            cout << "Idioma destino (en, fr, it, de, es): " << endl;
-            cin >> idioma; // El idioma no tiene espacios, cin está bien aquí
-
-            NodoAVL *cache = historial.buscar(palabra);
-            if (cache && cache->idioma == idioma)
-            {
-                resultado = cache->traduccion;
-                cout << "\n[Cache AVL] TRADUCCION: " << resultado << "\n";
-                historial.incrementarContador(palabra);
+            NodoAVL *cache = historial.buscar(pal);
+            if (cache && cache->idioma == idio) {
+                res = cache->traduccion;
+                cout << endl << "  [CACHE] Traduccion : " << res << endl;
+                historial.incrementarContador(pal);
+            } else {
+                res = traducir(pal, idio);
+                cout << endl << "  [API]   Traduccion : " << res << endl;
+                int cont = cache ? cache->contadorBusqueda + 1 : 1;
+                if (cache) historial.eliminar(pal);
+                historial.insertar(pal, res, idio, cont);
             }
-            else
-            {
-                resultado = traducir(palabra, idioma);
-                cout << "TRADUCCION: " << resultado << "\n";
-                int contPrevio = cache ? cache->contadorBusqueda + 1 : 1;
-                if (cache)
-                    historial.eliminar(palabra);
-                historial.insertar(palabra, resultado, idioma, contPrevio);
-            }
-            // --- AUDIO ---
-            cout << "[Reproduciendo audio...]" << endl;
-            reproducirAudio(resultado);
+            cout << "  [INFO]  Reproduciendo audio..." << endl;
+            reproducirAudio(res); 
             pausar();
             break;
         }
-        case 2:
-        {
-            string palabra, traduccion, idioma;
-            cout << "AGREGAR MANUALMENTE" << endl;
-            cout << "Texto original: " << endl;
-
-            cin.ignore();          // LIMPIAR EL BUFFER
-            getline(cin, palabra); // LEER LA FRASE
-
-            cout << "Traduccion: " << endl;
-            getline(cin, traduccion); // LA TRADUCCIÓN TAMBIÉN PUEDE TENER ESPACIOS
-
-            cout << "Idioma (en, fr, it, de, es): " << endl;
-            cin >> idioma;
-            historial.insertar(palabra, traduccion, idioma, 1);
-            cout << "\n[Nodo insertado en el arbol AVL]\n";
-            pausar();
+        case 2: {
+            string pal, trad, idio;
+            cout << endl << "  >>> AGREGAR MANUALMENTE <<<" << endl;
+            cout << "  Original   : "; getline(cin, pal);
+            cout << "  Traduccion : "; getline(cin, trad);
+            cout << "  Idioma     : "; cin >> idio;
+            cin.clear(); cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            historial.insertar(pal, trad, idio, 1);
+            cout << endl << "  [OK] Guardado en historial." << endl; pausar();
             break;
         }
-        case 3:
-        {
-            string palabra;
-            cout << "ELIMINAR DEL HISTORIAL" << endl;
-            cout << "Texto a eliminar: " << endl;
-
-            cin.ignore();          // LIMPIAR EL BUFFER
-            getline(cin, palabra); // LEER CON ESPACIOS
-
-            if (historial.eliminar(palabra))
-                cout << "\n[Nodo eliminado del arbol AVL]\n";
-            else
-                cout << "\n[Texto no encontrado en el historial]\n";
-            pausar();
-            break;
+        case 3: {
+            string pal;
+            cout << endl << "  >>> ELIMINAR DEL HISTORIAL <<<" << endl;
+            cout << "  Texto a borrar : "; getline(cin, pal);
+            if (historial.eliminar(pal)) cout << "  [OK] Registro eliminado." << endl;
+            else cout << "  [!] No se encontro el texto." << endl;
+            pausar(); break;
         }
         case 4:
-        {
             mostrarHistorial(historial);
             pausar();
             break;
-        }
         case 5:
         {
             guardarHistorialEncriptado(usuario, historial);
-            cout << "Sesion guardada. Hasta luego, " << usuario << "!" << endl;
+            cout << endl << "  [OK] Sesion guardada. Hasta pronto, " << usuario << "!" << endl;
             break;
         }
         default:
-        {
-            cout << "[Opcion invalida. Intente de nuevo]" << endl;
+            cout << "  [!] Opcion no valida." << endl;
             pausar();
             break;
-        }
         }
 
     } while (opcion != 5);
